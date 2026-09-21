@@ -1,85 +1,420 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Trust Wallet Test</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>BSC Trust Wallet Test</title>
+
+<style>
+body{
+    margin:0;
+    min-height:100vh;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    background:#0b0e11;
+    color:white;
+    font-family:Arial,sans-serif;
+    padding:20px;
+}
+
+.card{
+    width:100%;
+    max-width:420px;
+    background:#151a20;
+    border-radius:18px;
+    padding:28px;
+    box-sizing:border-box;
+}
+
+h2{
+    margin-top:0;
+}
+
+button{
+    width:100%;
+    border:0;
+    border-radius:12px;
+    padding:16px;
+    margin-top:12px;
+    font-size:16px;
+    font-weight:bold;
+    background:#3375bb;
+    color:white;
+}
+
+button:disabled{
+    opacity:.5;
+}
+
+#status{
+    margin-top:20px;
+    color:#aaa;
+    line-height:1.5;
+    word-break:break-word;
+}
+
+#addressBox{
+    display:none;
+    margin-top:20px;
+    padding:15px;
+    background:#0d1217;
+    border-radius:12px;
+    border:1px solid #29313a;
+}
+
+#address{
+    color:#48c78e;
+    word-break:break-all;
+    margin-top:8px;
+    font-family:monospace;
+}
+</style>
 </head>
 
-<body style="font-family:Arial;text-align:center;padding:50px">
+<body>
 
-<h2>Trust Wallet Test</h2>
+<div class="card">
 
-<button onclick="connectWallet()"
-style="padding:15px 25px;font-size:18px;">
+<h2>🔐 BSC Wallet Test</h2>
+
+<p>
+Connect your Trust Wallet to test BNB Smart Chain.
+</p>
+
+<button id="connect">
 Connect Trust Wallet
 </button>
 
-<p id="status">Not connected</p>
+<div id="status">
+Ready.
+</div>
 
-<script>
-async function connectWallet() {
+<div id="addressBox">
+<div>BEP-20 / BSC ADDRESS</div>
+<div id="address"></div>
+</div>
 
-    const status = document.getElementById("status");
+</div>
 
-    // Detect Trust Wallet provider
-    const provider =
-        window.trustwallet ||
-        window.ethereum;
 
-    if (!provider) {
-        status.innerHTML =
-        "Opening Trust Wallet...";
+<script type="module">
 
-        // Open this page inside Trust Wallet
-        const currentUrl = encodeURIComponent(
-            window.location.href
+/*
+====================================================
+PUT YOUR WALLETCONNECT / REOWN PROJECT ID HERE
+====================================================
+*/
+const PROJECT_ID = "YOUR_PROJECT_ID";
+
+
+/*
+====================================================
+LOAD WALLETCONNECT ETHEREUM PROVIDER
+====================================================
+*/
+
+import {
+    EthereumProvider
+} from "https://esm.sh/@walletconnect/ethereum-provider@2.25.0";
+
+
+const connectButton =
+    document.getElementById("connect");
+
+const status =
+    document.getElementById("status");
+
+const addressBox =
+    document.getElementById("addressBox");
+
+const addressElement =
+    document.getElementById("address");
+
+
+let provider = null;
+
+
+/*
+====================================================
+STATUS
+====================================================
+*/
+
+function setStatus(text){
+    status.textContent = text;
+}
+
+
+/*
+====================================================
+CONNECT
+====================================================
+*/
+
+async function connectWallet(){
+
+    if(PROJECT_ID === "099969b240c6daecd602839a2f6cfc8c"){
+
+        setStatus(
+            "You must put your WalletConnect Project ID in the HTML first."
         );
-
-        window.location.href =
-        "https://link.trustwallet.com/open_url?url=" +
-        currentUrl;
 
         return;
     }
 
-    try {
+    try{
 
-        status.innerHTML = "Connecting...";
+        connectButton.disabled = true;
 
-        const accounts = await provider.request({
-            method: "eth_requestAccounts"
-        });
+        setStatus(
+            "Creating WalletConnect session..."
+        );
 
-        const address = accounts[0];
 
-        status.innerHTML =
-        "<b>Connected!</b><br><br>" +
-        address;
-
-        console.log("BSC Wallet:", address);
-
-        // Later your webhook goes here:
         /*
-        fetch("https://YOUR-DOMAIN.com/webhook", {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json"
-            },
-            body: JSON.stringify({
-                wallet: address,
-                network: "BSC"
-            })
-        });
+        ==============================================
+        INITIALIZE WALLETCONNECT
+        ==============================================
         */
 
-    } catch (error) {
+        provider = await EthereumProvider.init({
 
-        status.innerHTML =
-        "Connection cancelled/error: " +
-        error.message;
+            projectId: PROJECT_ID,
+
+            /*
+             * BNB Smart Chain
+             * Chain ID = 56
+             */
+            optionalChains: [56],
+
+            showQrModal: false,
+
+            metadata: {
+
+                name: "BSC Wallet Test",
+
+                description:
+                    "Trust Wallet BSC connection test",
+
+                url:
+                    window.location.origin,
+
+                icons: [
+                    "https://trustwallet.com/assets/images/favicon.png"
+                ]
+            }
+
+        });
+
+
+        /*
+        ==============================================
+        WALLETCONNECT URI
+        ==============================================
+        */
+
+        provider.on(
+            "display_uri",
+            function(uri){
+
+                console.log(
+                    "WalletConnect URI:",
+                    uri
+                );
+
+                setStatus(
+                    "Opening Trust Wallet..."
+                );
+
+
+                /*
+                 * Trust Wallet deep link
+                 */
+
+                const trustWalletURL =
+                    "https://link.trustwallet.com/wc?uri=" +
+                    encodeURIComponent(uri);
+
+
+                /*
+                 * Open Trust Wallet
+                 */
+
+                window.location.href =
+                    trustWalletURL;
+
+            }
+        );
+
+
+        /*
+        ==============================================
+        CONNECTED
+        ==============================================
+        */
+
+        provider.on(
+            "connect",
+            function(){
+
+                console.log(
+                    "WalletConnect session connected"
+                );
+
+            }
+        );
+
+
+        /*
+        ==============================================
+        ACCOUNT CHANGED
+        ==============================================
+        */
+
+        provider.on(
+            "accountsChanged",
+            function(accounts){
+
+                if(
+                    accounts &&
+                    accounts.length > 0
+                ){
+
+                    showAddress(accounts[0]);
+
+                }
+
+            }
+        );
+
+
+        /*
+        ==============================================
+        START CONNECTION
+        ==============================================
+        */
+
+        await provider.connect();
+
+
+        /*
+        ==============================================
+        GET ACCOUNT
+        ==============================================
+        */
+
+        const accounts =
+            await provider.request({
+
+                method:
+                    "eth_requestAccounts"
+
+            });
+
+
+        if(
+            accounts &&
+            accounts.length > 0
+        ){
+
+            showAddress(
+                accounts[0]
+            );
+
+        }
+
+
+    }catch(error){
+
+        console.error(error);
+
+        setStatus(
+            "Connection failed: " +
+            (
+                error.message ||
+                error
+            )
+        );
+
+        connectButton.disabled = false;
+
     }
+
 }
+
+
+/*
+====================================================
+DISPLAY ADDRESS
+====================================================
+*/
+
+function showAddress(address){
+
+    addressElement.textContent =
+        address;
+
+    addressBox.style.display =
+        "block";
+
+    setStatus(
+        "✅ Trust Wallet connected successfully."
+    );
+
+    connectButton.textContent =
+        "Wallet Connected";
+
+    connectButton.disabled =
+        true;
+
+
+    /*
+    =================================================
+    YOUR WEBHOOK GOES HERE
+    =================================================
+
+    Example:
+
+    fetch(
+        "https://YOUR-DOMAIN.com/webhook",
+        {
+            method:"POST",
+
+            headers:{
+                "Content-Type":
+                    "application/json"
+            },
+
+            body:JSON.stringify({
+
+                wallet_address:
+                    address,
+
+                network:
+                    "BSC"
+
+            })
+        }
+    );
+
+    */
+
+}
+
+
+/*
+====================================================
+BUTTON
+====================================================
+*/
+
+connectButton.addEventListener(
+    "click",
+    connectWallet
+);
+
 </script>
 
 </body>
-</html>
+  </html>
