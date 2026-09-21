@@ -1,222 +1,28 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>BSC Trust Wallet Test</title>
-
-<style>
-body{
-    margin:0;
-    min-height:100vh;
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    background:#0b0e11;
-    color:white;
-    font-family:Arial,sans-serif;
-    padding:20px;
-    box-sizing:border-box;
-}
-.card{
-    width:100%;
-    max-width:420px;
-    background:#151a20;
-    border-radius:18px;
-    padding:28px;
-    box-sizing:border-box;
-}
-h2{ margin-top:0; }
-button{
-    width:100%;
-    border:0;
-    border-radius:12px;
-    padding:16px;
-    margin-top:12px;
-    font-size:16px;
-    font-weight:bold;
-    background:#3375bb;
-    color:white;
-}
-button:disabled{ opacity:.5; }
-#statusText{
-    margin-top:20px;
-    color:#aaa;
-    line-height:1.5;
-    word-break:break-word;
-}
-#addressBox{
-    display:none;
-    margin-top:20px;
-    padding:15px;
-    background:#0d1217;
-    border-radius:12px;
-    border:1px solid #29313a;
-}
-#address{
-    color:#48c78e;
-    word-break:break-all;
-    margin-top:8px;
-    font-family:monospace;
-}
-</style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <title>Mini App</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
 </head>
-
 <body>
 
-<div class="card">
-    <h2>🔐 BSC Wallet Test</h2>
-    <p>Connect your Trust Wallet to test BNB Smart Chain.</p>
-
-    <button id="connect">Connect Trust Wallet</button>
-    <button id="disconnect" style="display:none;background:#2a323b">Disconnect</button>
-
-    <div id="statusText">Ready.</div>
-
-    <div id="addressBox">
-        <div>BEP-20 / BSC ADDRESS</div>
-        <div id="address"></div>
+  <!-- Shown when the page is opened outside Telegram -->
+  <div id="blocked" hidden>
+    <div class="box">
+      <div class="lock">
+        <svg viewBox="0 0 24 24"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
+      </div>
+      <h2>Open in Telegram</h2>
+      <p>This app only works inside the Telegram Mini App. Open it from the bot in Telegram.</p>
     </div>
-</div>
+  </div>
 
-<script type="module">
+  <!-- Every page renders into this container -->
+  <main id="app" hidden></main>
 
-// Your WalletConnect / Reown project ID.
-// Also add this page's domain to the Allowed Domains list in the Reown dashboard.
-const PROJECT_ID = "099969b240c6daecd602839a2f6cfc8c";
-const PLACEHOLDER = "YOUR_PROJECT_ID";
-
-import { EthereumProvider } from "https://esm.sh/@walletconnect/ethereum-provider@2";
-
-const connectButton    = document.getElementById("connect");
-const disconnectButton = document.getElementById("disconnect");
-const statusText       = document.getElementById("statusText");
-const addressBox       = document.getElementById("addressBox");
-const addressElement   = document.getElementById("address");
-
-let provider = null;
-
-function setStatus(text){
-    statusText.textContent = text;
-}
-
-function showAddress(address){
-    addressElement.textContent = address;
-    addressBox.style.display = "block";
-    setStatus("✅ Trust Wallet connected successfully.");
-    connectButton.textContent = "Wallet Connected";
-    connectButton.disabled = true;
-    disconnectButton.style.display = "block";
-
-    // Webhook example (an address alone is not proof of ownership;
-    // ask the user to sign a message with personal_sign if you need that):
-    //
-    // fetch("https://YOUR-DOMAIN.com/webhook", {
-    //     method: "POST",
-    //     headers: { "Content-Type": "application/json" },
-    //     body: JSON.stringify({ wallet_address: address, network: "BSC" })
-    // });
-}
-
-function resetUI(){
-    addressBox.style.display = "none";
-    addressElement.textContent = "";
-    connectButton.textContent = "Connect Trust Wallet";
-    connectButton.disabled = false;
-    disconnectButton.style.display = "none";
-    setStatus("Ready.");
-}
-
-async function getProvider(){
-    if (provider) return provider;
-
-    provider = await EthereumProvider.init({
-        projectId: PROJECT_ID,
-        chains: [56],                       // BNB Smart Chain
-        rpcMap: { 56: "https://bsc-dataseed.binance.org" },
-        showQrModal: false,
-        metadata: {
-            name: "BSC Wallet Test",
-            description: "Trust Wallet BSC connection test",
-            url: window.location.origin,
-            icons: ["https://trustwallet.com/assets/images/favicon.png"]
-        }
-    });
-
-    provider.on("display_uri", (uri) => {
-        setStatus("Opening Trust Wallet...");
-        window.location.href =
-            "https://link.trustwallet.com/wc?uri=" + encodeURIComponent(uri);
-    });
-
-    provider.on("accountsChanged", (accounts) => {
-        if (accounts && accounts.length > 0) showAddress(accounts[0]);
-    });
-
-    provider.on("disconnect", resetUI);
-
-    return provider;
-}
-
-asyn if (!PROJECT_ID || PROJECT_ID === PLACEHOLDER){
-        setStatus("You must put your WalletConnect Project ID in the HTML first.");
-        return;
-    }
-
-    try{
-        connectButton.disabled = true;
-        setStatus("Creating WalletConnect session...");
-
-        const p = await getProvider();
-
-        // Reuse an existing session (e.g. after returning from Trust Wallet
-        // and the page reloaded) instead of asking for a new connection.
-        if (!p.session){
-            await p.connect();
-        }
-
-        const accounts = p.accounts;
-        if (accounts && accounts.length > 0){
-            showAddress(accounts[0]);
-        } else {
-            throw new Error("No account returned by wallet.");
-        }
-
-    }catch(error){
-        console.error(error);
-        setStatus("Connection failed: " + (error?.message || error));
-        connectButton.disabled = false;
-    }
-}
-
-async function disconnectWallet(){
-    try{
-        if (provider) await provider.disconnect();
-    }catch(e){
-        console.error(e);
-    }
-    resetUI();
-}
-
-// Restore a previous session automatically when the page loads
-// (important on mobile, where the browser often reloads after
-// returning from the wallet app).
-window.addEventListener("load", async () => {
-    if (!PROJECT_ID || PROJECT_ID === PLACEHOLDER) return;
-    try{
-        const p = await getProvider();
-        if (p.session && p.accounts && p.accounts.length > 0){
-            showAddress(p.accounts[0]);
-        }
-    }catch(e){
-        console.error(e);
-    }
-});
-
-connectButton.addEventListener("click", connectWallet);
-disconnectButton.addEventListener("click", disconnectWallet);
-
-</script>
-
+  <script type="module" src="js/app.js"></script>
 </body>
 </html>
