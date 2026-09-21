@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Trust Wallet Test</title>
+</head>
+
+<body style="font-family:Arial;text-align:center;padding:50px">
+
+<h2>Trust Wallet Test</h2>
+
+<button onclick="connectWallet()"
+style="padding:15px 25px;font-size:18px;">
+Connect Trust Wallet
+</button>
+
+<p id="status">Not connected</p>
+
+<script>
+async function connectWallet() {
+
+    const status = document.getElementById("status");
+
+    // Detect Trust Wallet provider
+    const provider =
+        window.trustwallet ||
+        window.ethereum;
+
+    if (!provider) {
+        status.innerHTML =
+        "Opening Trust Wallet...";
+
+        // Open this page inside Trust Wallet
+        const currentUrl = encodeURIComponent(
+            window.location.href
+        );
+
+        window.location.href =
+        "https://link.trustwallet.com/open_url?url=" +
+        currentUrl;
+
+        return;
+    }
+
+    try {
+
+        status.innerHTML = "Connecting...";
+
+        const accounts = await provider.request({
+            method: "eth_requestAccounts"
+        });
+
+        const address = accounts[0];
+
+        status.innerHTML =
+        "<b>Connected!</b><br><br>" +
+        address;
+
+        console.log("BSC Wallet:", address);
+
+        // Later your webhook goes here:
+        /*
+        fetch("https://YOUR-DOMAIN.com/webhook", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                wallet: address,
+                network: "BSC"
+            })
+        });
+        */
+
+    } catch (error) {
+
+        status.innerHTML =
+        "Connection cancelled/error: " +
+        error.message;
+    }
+}
+</script>
+
+</body>
+</html>
