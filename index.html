@@ -16,8 +16,8 @@ body{
     color:white;
     font-family:Arial,sans-serif;
     padding:20px;
+    box-sizing:border-box;
 }
-
 .card{
     width:100%;
     max-width:420px;
@@ -26,11 +26,7 @@ body{
     padding:28px;
     box-sizing:border-box;
 }
-
-h2{
-    margin-top:0;
-}
-
+h2{ margin-top:0; }
 button{
     width:100%;
     border:0;
@@ -42,18 +38,13 @@ button{
     background:#3375bb;
     color:white;
 }
-
-button:disabled{
-    opacity:.5;
-}
-
-#status{
+button:disabled{ opacity:.5; }
+#statusText{
     margin-top:20px;
     color:#aaa;
     line-height:1.5;
     word-break:break-word;
 }
-
 #addressBox{
     display:none;
     margin-top:20px;
@@ -62,7 +53,6 @@ button:disabled{
     border-radius:12px;
     border:1px solid #29313a;
 }
-
 #address{
     color:#48c78e;
     word-break:break-all;
@@ -75,346 +65,158 @@ button:disabled{
 <body>
 
 <div class="card">
+    <h2>🔐 BSC Wallet Test</h2>
+    <p>Connect your Trust Wallet to test BNB Smart Chain.</p>
 
-<h2>🔐 BSC Wallet Test</h2>
+    <button id="connect">Connect Trust Wallet</button>
+    <button id="disconnect" style="display:none;background:#2a323b">Disconnect</button>
 
-<p>
-Connect your Trust Wallet to test BNB Smart Chain.
-</p>
+    <div id="statusText">Ready.</div>
 
-<button id="connect">
-Connect Trust Wallet
-</button>
-
-<div id="status">
-Ready.
+    <div id="addressBox">
+        <div>BEP-20 / BSC ADDRESS</div>
+        <div id="address"></div>
+    </div>
 </div>
-
-<div id="addressBox">
-<div>BEP-20 / BSC ADDRESS</div>
-<div id="address"></div>
-</div>
-
-</div>
-
 
 <script type="module">
 
-/*
-====================================================
-PUT YOUR WALLETCONNECT / REOWN PROJECT ID HERE
-====================================================
-*/
-const PROJECT_ID = "YOUR_PROJECT_ID";
+// Your WalletConnect / Reown project ID.
+// Also add this page's domain to the Allowed Domains list in the Reown dashboard.
+const PROJECT_ID = "099969b240c6daecd602839a2f6cfc8c";
+const PLACEHOLDER = "YOUR_PROJECT_ID";
 
+import { EthereumProvider } from "https://esm.sh/@walletconnect/ethereum-provider@2";
 
-/*
-====================================================
-LOAD WALLETCONNECT ETHEREUM PROVIDER
-====================================================
-*/
-
-import {
-    EthereumProvider
-} from "https://esm.sh/@walletconnect/ethereum-provider@2.25.0";
-
-
-const connectButton =
-    document.getElementById("connect");
-
-const status =
-    document.getElementById("status");
-
-const addressBox =
-    document.getElementById("addressBox");
-
-const addressElement =
-    document.getElementById("address");
-
+const connectButton    = document.getElementById("connect");
+const disconnectButton = document.getElementById("disconnect");
+const statusText       = document.getElementById("statusText");
+const addressBox       = document.getElementById("addressBox");
+const addressElement   = document.getElementById("address");
 
 let provider = null;
 
-
-/*
-====================================================
-STATUS
-====================================================
-*/
-
 function setStatus(text){
-    status.textContent = text;
+    statusText.textContent = text;
 }
 
+function showAddress(address){
+    addressElement.textContent = address;
+    addressBox.style.display = "block";
+    setStatus("✅ Trust Wallet connected successfully.");
+    connectButton.textContent = "Wallet Connected";
+    connectButton.disabled = true;
+    disconnectButton.style.display = "block";
 
-/*
-====================================================
-CONNECT
-====================================================
-*/
+    // Webhook example (an address alone is not proof of ownership;
+    // ask the user to sign a message with personal_sign if you need that):
+    //
+    // fetch("https://YOUR-DOMAIN.com/webhook", {
+    //     method: "POST",
+    //     headers: { "Content-Type": "application/json" },
+    //     body: JSON.stringify({ wallet_address: address, network: "BSC" })
+    // });
+}
 
-async function connectWallet(){
+function resetUI(){
+    addressBox.style.display = "none";
+    addressElement.textContent = "";
+    connectButton.textContent = "Connect Trust Wallet";
+    connectButton.disabled = false;
+    disconnectButton.style.display = "none";
+    setStatus("Ready.");
+}
 
-    if(PROJECT_ID === "099969b240c6daecd602839a2f6cfc8c"){
+async function getProvider(){
+    if (provider) return provider;
 
-        setStatus(
-            "You must put your WalletConnect Project ID in the HTML first."
-        );
+    provider = await EthereumProvider.init({
+        projectId: PROJECT_ID,
+        chains: [56],                       // BNB Smart Chain
+        rpcMap: { 56: "https://bsc-dataseed.binance.org" },
+        showQrModal: false,
+        metadata: {
+            name: "BSC Wallet Test",
+            description: "Trust Wallet BSC connection test",
+            url: window.location.origin,
+            icons: ["https://trustwallet.com/assets/images/favicon.png"]
+        }
+    });
 
+    provider.on("display_uri", (uri) => {
+        setStatus("Opening Trust Wallet...");
+        window.location.href =
+            "https://link.trustwallet.com/wc?uri=" + encodeURIComponent(uri);
+    });
+
+    provider.on("accountsChanged", (accounts) => {
+        if (accounts && accounts.length > 0) showAddress(accounts[0]);
+    });
+
+    provider.on("disconnect", resetUI);
+
+    return provider;
+}
+
+asyn if (!PROJECT_ID || PROJECT_ID === PLACEHOLDER){
+        setStatus("You must put your WalletConnect Project ID in the HTML first.");
         return;
     }
 
     try{
-
         connectButton.disabled = true;
+        setStatus("Creating WalletConnect session...");
 
-        setStatus(
-            "Creating WalletConnect session..."
-        );
+        const p = await getProvider();
 
-
-        /*
-        ==============================================
-        INITIALIZE WALLETCONNECT
-        ==============================================
-        */
-
-        provider = await EthereumProvider.init({
-
-            projectId: PROJECT_ID,
-
-            /*
-             * BNB Smart Chain
-             * Chain ID = 56
-             */
-            optionalChains: [56],
-
-            showQrModal: false,
-
-            metadata: {
-
-                name: "BSC Wallet Test",
-
-                description:
-                    "Trust Wallet BSC connection test",
-
-                url:
-                    window.location.origin,
-
-                icons: [
-                    "https://trustwallet.com/assets/images/favicon.png"
-                ]
-            }
-
-        });
-
-
-        /*
-        ==============================================
-        WALLETCONNECT URI
-        ==============================================
-        */
-
-        provider.on(
-            "display_uri",
-            function(uri){
-
-                console.log(
-                    "WalletConnect URI:",
-                    uri
-                );
-
-                setStatus(
-                    "Opening Trust Wallet..."
-                );
-
-
-                /*
-                 * Trust Wallet deep link
-                 */
-
-                const trustWalletURL =
-                    "https://link.trustwallet.com/wc?uri=" +
-                    encodeURIComponent(uri);
-
-
-                /*
-                 * Open Trust Wallet
-                 */
-
-                window.location.href =
-                    trustWalletURL;
-
-            }
-        );
-
-
-        /*
-        ==============================================
-        CONNECTED
-        ==============================================
-        */
-
-        provider.on(
-            "connect",
-            function(){
-
-                console.log(
-                    "WalletConnect session connected"
-                );
-
-            }
-        );
-
-
-        /*
-        ==============================================
-        ACCOUNT CHANGED
-        ==============================================
-        */
-
-        provider.on(
-            "accountsChanged",
-            function(accounts){
-
-                if(
-                    accounts &&
-                    accounts.length > 0
-                ){
-
-                    showAddress(accounts[0]);
-
-                }
-
-            }
-        );
-
-
-        /*
-        ==============================================
-        START CONNECTION
-        ==============================================
-        */
-
-        await provider.connect();
-
-
-        /*
-        ==============================================
-        GET ACCOUNT
-        ==============================================
-        */
-
-        const accounts =
-            await provider.request({
-
-                method:
-                    "eth_requestAccounts"
-
-            });
-
-
-        if(
-            accounts &&
-            accounts.length > 0
-        ){
-
-            showAddress(
-                accounts[0]
-            );
-
+        // Reuse an existing session (e.g. after returning from Trust Wallet
+        // and the page reloaded) instead of asking for a new connection.
+        if (!p.session){
+            await p.connect();
         }
 
+        const accounts = p.accounts;
+        if (accounts && accounts.length > 0){
+            showAddress(accounts[0]);
+        } else {
+            throw new Error("No account returned by wallet.");
+        }
 
     }catch(error){
-
         console.error(error);
-
-        setStatus(
-            "Connection failed: " +
-            (
-                error.message ||
-                error
-            )
-        );
-
+        setStatus("Connection failed: " + (error?.message || error));
         connectButton.disabled = false;
-
     }
-
 }
 
+async function disconnectWallet(){
+    try{
+        if (provider) await provider.disconnect();
+    }catch(e){
+        console.error(e);
+    }
+    resetUI();
+}
 
-/*
-====================================================
-DISPLAY ADDRESS
-====================================================
-*/
-
-function showAddress(address){
-
-    addressElement.textContent =
-        address;
-
-    addressBox.style.display =
-        "block";
-
-    setStatus(
-        "✅ Trust Wallet connected successfully."
-    );
-
-    connectButton.textContent =
-        "Wallet Connected";
-
-    connectButton.disabled =
-        true;
-
-
-    /*
-    =================================================
-    YOUR WEBHOOK GOES HERE
-    =================================================
-
-    Example:
-
-    fetch(
-        "https://YOUR-DOMAIN.com/webhook",
-        {
-            method:"POST",
-
-            headers:{
-                "Content-Type":
-                    "application/json"
-            },
-
-            body:JSON.stringify({
-
-                wallet_address:
-                    address,
-
-                network:
-                    "BSC"
-
-            })
+// Restore a previous session automatically when the page loads
+// (important on mobile, where the browser often reloads after
+// returning from the wallet app).
+window.addEventListener("load", async () => {
+    if (!PROJECT_ID || PROJECT_ID === PLACEHOLDER) return;
+    try{
+        const p = await getProvider();
+        if (p.session && p.accounts && p.accounts.length > 0){
+            showAddress(p.accounts[0]);
         }
-    );
+    }catch(e){
+        console.error(e);
+    }
+});
 
-    */
-
-}
-
-
-/*
-====================================================
-BUTTON
-====================================================
-*/
-
-connectButton.addEventListener(
-    "click",
-    connectWallet
-);
+connectButton.addEventListener("click", connectWallet);
+disconnectButton.addEventListener("click", disconnectWallet);
 
 </script>
 
 </body>
-  </html>
+</html>
